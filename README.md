@@ -117,6 +117,12 @@ dsk --width 120               # Fixed width (0 = auto)
 - .NET 10 SDK (for building)
 - No runtime dependencies when published as Native AOT
 
+## Built With
+
+- [ConsoleAppFramework](https://github.com/Cysharp/ConsoleAppFramework) — Zero-dependency, high-performance CLI parsing with source generation
+- [Spectre.Console](https://github.com/spectreconsole/spectre.console) — Beautiful terminal UI, tables, and colors
+- Inspired by [duf](https://github.com/muesli/duf)
+
 ## License
 
 MIT
