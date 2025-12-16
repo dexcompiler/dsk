@@ -71,7 +71,7 @@ public static class SizeFormatter
             _ => 0
         };
         
-        return size > 0 || (suffix is 'K' or 'M' or 'G' or 'T' or 'P' or 'E' && number == 0);
+        return size > 0 || (suffix is 'K' or 'M' or 'G' or 'T' or 'P' or 'E') && number == 0;
     }
 }
 

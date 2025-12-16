@@ -142,7 +142,8 @@ public static class MountFilter
             bool hasBind = options.OnlyDevices.Contains(DeviceTypes.Binds);
             if (options.OnlyDevices.Count > 0 && !hasBind)
                 return false;
-            if (options.HiddenDevices.Contains(DeviceTypes.Binds) && !options.IncludeAll)
+            // Explicit device type filters always take precedence over --all
+            if (options.HiddenDevices.Contains(DeviceTypes.Binds))
                 return false;
         }
         
@@ -152,7 +153,8 @@ public static class MountFilter
             bool hasLoops = options.OnlyDevices.Contains(DeviceTypes.Loops);
             if (options.OnlyDevices.Count > 0 && !hasLoops)
                 return false;
-            if (options.HiddenDevices.Contains(DeviceTypes.Loops) && !options.IncludeAll)
+            // Explicit device type filters always take precedence over --all
+            if (options.HiddenDevices.Contains(DeviceTypes.Loops))
                 return false;
         }
         

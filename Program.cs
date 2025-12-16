@@ -1,5 +1,5 @@
-using ConsoleAppFramework;
 using Dsk;
+using ConsoleAppFramework;
 
 var app = ConsoleApp.Create();
 app.Add<DskCommands>();

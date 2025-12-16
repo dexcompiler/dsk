@@ -73,7 +73,13 @@ public sealed class WindowsMountProvider : IMountProvider
             {
                 // Retry with larger buffer
                 pathNames = new char[returnLength];
-                WindowsNative.GetVolumePathNamesForVolumeName(volumeGuid, pathNames, (uint)pathNames.Length, out _);
+                if (!WindowsNative.GetVolumePathNamesForVolumeName(volumeGuid, pathNames, (uint)pathNames.Length, out _))
+                {
+                    var retryError = Marshal.GetLastWin32Error();
+                    warnings.Add($"{volumeGuid}: GetVolumePathNamesForVolumeName retry failed ({retryError})");
+                    // Clear buffer to ensure we skip this volume
+                    Array.Clear(pathNames);
+                }
             }
             else
             {
