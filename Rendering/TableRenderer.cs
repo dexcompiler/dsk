@@ -142,7 +142,7 @@ public static class TableRenderer
         
         foreach (var group in groups)
         {
-            var deviceMounts = SortMounts(group.ToList(), options.SortBy);
+            var deviceMounts = SortMounts([.. group], options.SortBy);
             if (deviceMounts.Count == 0)
                 continue;
                 
@@ -168,17 +168,17 @@ public static class TableRenderer
     {
         return sortBy switch
         {
-            SortColumn.Size => mounts.OrderBy(m => m.Total).ToList(),
-            SortColumn.Used => mounts.OrderBy(m => m.Used).ToList(),
-            SortColumn.Avail => mounts.OrderBy(m => m.Free).ToList(),
-            SortColumn.Usage => mounts.OrderBy(m => m.Usage).ToList(),
-            SortColumn.Inodes => mounts.OrderBy(m => m.Inodes).ToList(),
-            SortColumn.InodesUsed => mounts.OrderBy(m => m.InodesUsed).ToList(),
-            SortColumn.InodesAvail => mounts.OrderBy(m => m.InodesFree).ToList(),
-            SortColumn.InodesUsage => mounts.OrderBy(m => m.InodeUsage).ToList(),
-            SortColumn.Type => mounts.OrderBy(m => m.Fstype).ToList(),
-            SortColumn.Filesystem => mounts.OrderBy(m => m.Device).ToList(),
-            _ => mounts.OrderBy(m => m.Mountpoint).ToList(),
+            SortColumn.Size => [.. mounts.OrderBy(m => m.Total)],
+            SortColumn.Used => [.. mounts.OrderBy(m => m.Used)],
+            SortColumn.Avail => [.. mounts.OrderBy(m => m.Free)],
+            SortColumn.Usage => [.. mounts.OrderBy(m => m.Usage)],
+            SortColumn.Inodes => [.. mounts.OrderBy(m => m.Inodes)],
+            SortColumn.InodesUsed => [.. mounts.OrderBy(m => m.InodesUsed)],
+            SortColumn.InodesAvail => [.. mounts.OrderBy(m => m.InodesFree)],
+            SortColumn.InodesUsage => [.. mounts.OrderBy(m => m.InodeUsage)],
+            SortColumn.Type => [.. mounts.OrderBy(m => m.Fstype)],
+            SortColumn.Filesystem => [.. mounts.OrderBy(m => m.Device)],
+            _ => [.. mounts.OrderBy(m => m.Mountpoint)],
         };
     }
     
@@ -215,10 +215,7 @@ public static class TableRenderer
             {
                 column.RightAligned();
             }
-            else if (col is ColumnId.Usage or ColumnId.InodesUsage)
-            {
-                column.Centered();
-            }
+            // Usage bars with percentages look better left-aligned
             
             table.AddColumn(column);
         }
@@ -297,32 +294,52 @@ public static class TableRenderer
     
     private static IRenderable GetUsageBar(double usage, TableOptions options)
     {
+        const int barWidth = 8;
+        
         var theme = options.Theme;
         var thresholds = options.UsageThresholds;
         
         // Get color based on usage
         Color fgColor;
-        Color bgColor;
-        
         if (usage >= thresholds.Red)
-        {
             fgColor = theme.ColorRed;
-            bgColor = theme.ColorBgRed;
-        }
         else if (usage >= thresholds.Yellow)
-        {
             fgColor = theme.ColorYellow;
-            bgColor = theme.ColorBgYellow;
+        else
+            fgColor = theme.ColorGreen;
+        
+        // Calculate filled/empty segments
+        var filledCount = (int)Math.Round(usage * barWidth);
+        filledCount = Math.Clamp(filledCount, 0, barWidth);
+        var emptyCount = barWidth - filledCount;
+        
+        // Choose characters based on style
+        char filledChar, emptyChar;
+        if (options.Style == "ascii")
+        {
+            filledChar = '#';
+            emptyChar = '-';
         }
         else
         {
-            fgColor = theme.ColorGreen;
-            bgColor = theme.ColorBgGreen;
+            filledChar = '█';
+            emptyChar = '░';
         }
         
-        // Format as percentage only when width is limited
-        var percent = $"{usage * 100:F1}%";
-        return new Text(percent, new Style(foreground: fgColor));
+        // Build the bar
+        var filled = new string(filledChar, filledCount);
+        var empty = new string(emptyChar, emptyCount);
+        var percent = (usage * 100).ToString("F1");
+        
+        // Create composite renderable (escape [ and ] as [[ and ]] for Spectre markup)
+        var color = ToSpectreColor(fgColor);
+        return new Markup($"[[[{color}]{filled}[/][grey]{empty}[/]]] [{color}]{percent}%[/]");
+    }
+    
+    private static string ToSpectreColor(Color color)
+    {
+        // Convert Spectre.Console Color to markup color string
+        return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
     }
 }
 
