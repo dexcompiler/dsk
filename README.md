@@ -1,6 +1,6 @@
 # dsk
 
-A modern, cross-platform disk usage utility with rich terminal output. Built with C# 14 and .NET 10 for native AOT compilation.
+Disk usage, visualized beautifully. dsk gives you instant insights into your storage with rich terminal tables, smart grouping, and powerful filters. Native AOT compiled for speed, cross-platform by design. Supports JSON output, multiple themes, and wildcard filtering.
 
 ## Features
 
