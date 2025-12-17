@@ -1,6 +1,7 @@
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Dsk.Models;
+using Dsk.Services;
 using Dsk.Utils;
 
 namespace Dsk.Rendering;
@@ -20,7 +21,8 @@ public enum ColumnId
     InodesAvail = 8,
     InodesUsage = 9,
     Type = 10,
-    Filesystem = 11
+    Filesystem = 11,
+    Trend = 12
 }
 
 /// <summary>
@@ -38,7 +40,8 @@ public enum SortColumn
     InodesAvail,
     InodesUsage,
     Type,
-    Filesystem
+    Filesystem,
+    Trend
 }
 
 /// <summary>
@@ -53,6 +56,7 @@ public sealed class TableOptions
     public required Theme Theme { get; init; }
     public required Thresholds AvailThresholds { get; init; }
     public required UsageThresholds UsageThresholds { get; init; }
+    public HistoryData? History { get; init; }
 }
 
 /// <summary>
@@ -73,6 +77,7 @@ public static class TableRenderer
         ["inodes_usage"] = ColumnId.InodesUsage,
         ["type"] = ColumnId.Type,
         ["filesystem"] = ColumnId.Filesystem,
+        ["trend"] = ColumnId.Trend,
     };
     
     private static readonly Dictionary<string, SortColumn> SortMap = new(StringComparer.OrdinalIgnoreCase)
@@ -88,6 +93,7 @@ public static class TableRenderer
         ["inodes_usage"] = SortColumn.InodesUsage,
         ["type"] = SortColumn.Type,
         ["filesystem"] = SortColumn.Filesystem,
+        ["trend"] = SortColumn.Trend,
     };
     
     /// <summary>
@@ -251,6 +257,7 @@ public static class TableRenderer
             ColumnId.InodesUsage => "IUse%",
             ColumnId.Type => "Type",
             ColumnId.Filesystem => "Filesystem",
+            ColumnId.Trend => "Trend",
             _ => ""
         };
     }
@@ -272,8 +279,34 @@ public static class TableRenderer
             ColumnId.InodesUsage => GetUsageBar(mount.InodeUsage, options),
             ColumnId.Type => new Text(mount.Fstype, new Style(foreground: theme.ColorGray)),
             ColumnId.Filesystem => new Text(mount.Device, new Style(foreground: theme.ColorGray)),
+            ColumnId.Trend => GetTrendCell(mount, options),
             _ => Text.Empty
         };
+    }
+    
+    private static IRenderable GetTrendCell(Mount mount, TableOptions options)
+    {
+        var theme = options.Theme;
+        var useAscii = options.Style == "ascii";
+        
+        if (options.History == null)
+            return new Text(new string(useAscii ? '-' : '·', 8), new Style(foreground: theme.ColorGray));
+        
+        var history = HistoryService.GetHistory(options.History, mount.Mountpoint);
+        if (history.Count == 0)
+            return new Text(new string(useAscii ? '-' : '·', 8), new Style(foreground: theme.ColorGray));
+        
+        var sparkline = SparklineRenderer.Render(history, 8, useAscii);
+        var trend = SparklineRenderer.GetTrend(history);
+        
+        var color = trend switch
+        {
+            TrendDirection.Up => theme.ColorYellow,   // Filling up = warning
+            TrendDirection.Down => theme.ColorGreen,  // Freeing up = good
+            _ => theme.ColorGray
+        };
+        
+        return new Text(sparkline, new Style(foreground: color));
     }
     
     private static IRenderable GetAvailCell(ulong free, TableOptions options)

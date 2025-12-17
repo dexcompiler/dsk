@@ -21,7 +21,7 @@ public class DskCommands
     /// <param name="only">Show only specific devices, separated with commas: local, network, fuse, special, loops, binds</param>
     /// <param name="onlyFs">Only specific filesystems, separated with commas</param>
     /// <param name="onlyMp">Only specific mount points, separated with commas (supports wildcards)</param>
-    /// <param name="output">-o, Output fields: mountpoint, size, used, avail, usage, inodes, inodes_used, inodes_avail, inodes_usage, type, filesystem</param>
+    /// <param name="output">-o, Output fields: mountpoint, size, used, avail, usage, inodes, inodes_used, inodes_avail, inodes_usage, type, filesystem, trend</param>
     /// <param name="sort">-s, Sort output by: mountpoint, size, used, avail, usage, inodes, inodes_used, inodes_avail, inodes_usage, type, filesystem</param>
     /// <param name="width">-w, Max output width</param>
     /// <param name="theme">-t, Color themes: dark, light, ansi</param>
@@ -31,6 +31,7 @@ public class DskCommands
     /// <param name="inodes">-i, List inode information instead of block usage</param>
     /// <param name="json">-j, Output all devices in JSON format</param>
     /// <param name="warnings">Output all warnings to STDERR</param>
+    /// <param name="noSave">Don't save usage data to history</param>
     /// <param name="paths">Specific devices or mount points to display</param>
     [Command("")]
     public void Run(
@@ -51,6 +52,7 @@ public class DskCommands
         bool inodes = false,
         bool json = false,
         bool warnings = false,
+        bool noSave = false,
         [Argument] params string[] paths)
     {
         // Get mount provider for current platform
@@ -88,6 +90,14 @@ public class DskCommands
         
         // Apply filters
         mounts = MountFilter.Apply(mounts, filterOptions);
+        
+        // Load history and save current usage
+        var history = HistoryService.Load();
+        if (!noSave && !json)
+        {
+            var currentUsage = mounts.Select(m => (m.Mountpoint, m.Usage));
+            HistoryService.Save(currentUsage);
+        }
         
         // JSON output
         if (json)
@@ -138,6 +148,7 @@ public class DskCommands
             Theme = themeConfig,
             AvailThresholds = availThresholds,
             UsageThresholds = usageThresholds,
+            History = history,
         };
         
         TableRenderer.Render(mounts, tableOptions);
