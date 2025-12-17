@@ -91,13 +91,13 @@ public class DskCommands
         // Apply filters
         mounts = MountFilter.Apply(mounts, filterOptions);
         
-        // Load history and save current usage
-        var history = HistoryService.Load();
+        // Save current usage to history and reload to include it
         if (!noSave && !json)
         {
             var currentUsage = mounts.Select(m => (m.Mountpoint, m.Usage));
             HistoryService.Save(currentUsage);
         }
+        var history = HistoryService.Load();
         
         // JSON output
         if (json)
