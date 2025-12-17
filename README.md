@@ -56,6 +56,7 @@ dsk --all
 # Output options
 dsk --json                    # JSON output
 dsk --output size,used,avail  # Select columns
+dsk --output usage,trend      # Usage bars with sparkline trends
 dsk --sort size               # Sort by column
 dsk --inodes                  # Show inode information
 
@@ -63,6 +64,9 @@ dsk --inodes                  # Show inode information
 dsk --theme dark              # dark, light, or ansi
 dsk --style unicode           # unicode or ascii
 dsk --width 120               # Fixed width (0 = auto)
+
+# History
+dsk --no-save                 # Don't save usage to history
 ```
 
 ## Options
@@ -76,13 +80,14 @@ dsk --width 120               # Fixed width (0 = auto)
 | `--only-fs <fs>` | Show only specific filesystems |
 | `--hide-mp <pattern>` | Hide mount points matching pattern |
 | `--only-mp <pattern>` | Show only mount points matching pattern |
-| `-o, --output <cols>` | Columns: mountpoint, size, used, avail, usage, inodes, inodes_used, inodes_avail, inodes_usage, type, filesystem |
+| `-o, --output <cols>` | Columns: mountpoint, size, used, avail, usage, inodes, inodes_used, inodes_avail, inodes_usage, type, filesystem, trend |
 | `-s, --sort <col>` | Sort by column (prefix with ~ for descending) |
 | `-w, --width <n>` | Terminal width (0 = auto-detect) |
 | `--theme <name>` | Color theme: dark, light, ansi |
 | `--style <name>` | Table style: unicode, ascii |
 | `-i, --inodes` | Show inode information |
 | `-j, --json` | Output as JSON |
+| `--no-save` | Don't save usage data to history |
 | `--warnings` | Show warnings |
 
 ## Output Columns
@@ -93,7 +98,8 @@ dsk --width 120               # Fixed width (0 = auto)
 | `size` | Total size |
 | `used` | Space used |
 | `avail` | Space available |
-| `usage` | Usage percentage |
+| `usage` | Usage percentage with visual bar |
+| `trend` | Sparkline showing usage history (▁▂▃▄▅▆▇█) |
 | `inodes` | Total inodes |
 | `inodes_used` | Inodes used |
 | `inodes_avail` | Inodes available |
