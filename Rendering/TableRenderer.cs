@@ -148,7 +148,7 @@ public static class TableRenderer
         
         foreach (var group in groups)
         {
-            var deviceMounts = SortMounts([.. group], options.SortBy);
+            var deviceMounts = SortMounts([.. group], options);
             if (deviceMounts.Count == 0)
                 continue;
                 
@@ -170,9 +170,9 @@ public static class TableRenderer
         };
     }
     
-    private static List<Mount> SortMounts(List<Mount> mounts, SortColumn sortBy)
+    private static List<Mount> SortMounts(List<Mount> mounts, TableOptions options)
     {
-        return sortBy switch
+        return options.SortBy switch
         {
             SortColumn.Size => [.. mounts.OrderBy(m => m.Total)],
             SortColumn.Used => [.. mounts.OrderBy(m => m.Used)],
@@ -184,8 +184,29 @@ public static class TableRenderer
             SortColumn.InodesUsage => [.. mounts.OrderBy(m => m.InodeUsage)],
             SortColumn.Type => [.. mounts.OrderBy(m => m.Fstype)],
             SortColumn.Filesystem => [.. mounts.OrderBy(m => m.Device)],
+            SortColumn.Trend => SortByTrend(mounts, options),
             _ => [.. mounts.OrderBy(m => m.Mountpoint)],
         };
+    }
+    
+    private static List<Mount> SortByTrend(List<Mount> mounts, TableOptions options)
+    {
+        if (options.History == null)
+            return [.. mounts.OrderBy(m => m.Mountpoint)];
+        
+        // Sort by trend direction: Up (filling) first, then Stable, then Down (freeing)
+        return [.. mounts.OrderByDescending(m =>
+        {
+            var history = HistoryService.GetHistory(options.History, m.Mountpoint);
+            var trend = SparklineRenderer.GetTrend(history);
+            return trend switch
+            {
+                TrendDirection.Up => 2,     // Filling up = highest priority
+                TrendDirection.Stable => 1,
+                TrendDirection.Down => 0,   // Freeing = lowest priority
+                _ => 1
+            };
+        }).ThenByDescending(m => m.Usage)]; // Secondary sort by current usage
     }
     
     private static void RenderTable(string deviceType, List<Mount> mounts, TableOptions options)
