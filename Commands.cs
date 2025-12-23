@@ -29,7 +29,8 @@ public class DskCommands
     /// <param name="availThreshold">Specifies the coloring threshold (yellow, red) of the avail column</param>
     /// <param name="usageThreshold">Specifies the coloring threshold (yellow, red) of the usage bars (0 to 1)</param>
     /// <param name="inodes">-i, List inode information instead of block usage</param>
-    /// <param name="json">-j, Output all devices in JSON format</param>
+    /// <param name="json">-j, Output all devices in JSON format (deprecated, use --format json)</param>
+    /// <param name="format">-f, Output format: table, json, csv, markdown, html</param>
     /// <param name="warnings">Output all warnings to STDERR</param>
     /// <param name="noSave">Don't save usage data to history</param>
     /// <param name="paths">Specific devices or mount points to display</param>
@@ -51,6 +52,7 @@ public class DskCommands
         string usageThreshold = "0.5,0.9",
         bool inodes = false,
         bool json = false,
+        string format = "table",
         bool warnings = false,
         bool noSave = false,
         [Argument] params string[] paths)
@@ -91,32 +93,45 @@ public class DskCommands
         // Apply filters
         mounts = MountFilter.Apply(mounts, filterOptions);
         
-        // Save current usage to history and reload to include it
-        if (!noSave && !json)
+        // Determine effective format (--json flag overrides --format for backwards compat)
+        var effectiveFormat = json ? "json" : format.ToLowerInvariant();
+        
+        // Save current usage to history (skip for non-table formats)
+        if (!noSave && effectiveFormat == "table")
         {
             var currentUsage = mounts.Select(m => (m.Mountpoint, m.Usage));
             HistoryService.Save(currentUsage);
         }
         var history = HistoryService.Load();
         
-        // JSON output
-        if (json)
-        {
-            JsonRenderer.Render(mounts);
-            return;
-        }
-        
-        // Load theme
-        var themeConfig = ThemeManager.LoadTheme(theme);
-        
-        // Parse thresholds
-        var availThresholds = ThemeManager.ParseAvailThreshold(availThreshold);
-        var usageThresholds = ThemeManager.ParseUsageThreshold(usageThreshold);
-        
-        // Parse output columns
+        // Parse output columns (used by multiple formats)
         var columns = TableRenderer.ParseColumns(output, inodes);
         
-        // Parse sort column
+        // Handle different output formats
+        switch (effectiveFormat)
+        {
+            case "json":
+                JsonRenderer.Render(mounts);
+                return;
+                
+            case "csv":
+                CsvRenderer.Render(mounts, columns);
+                return;
+                
+            case "markdown":
+            case "md":
+                MarkdownRenderer.Render(mounts, columns);
+                return;
+                
+            case "html":
+                HtmlRenderer.Render(mounts, columns);
+                return;
+        }
+        
+        // Default: table format
+        var themeConfig = ThemeManager.LoadTheme(theme);
+        var availThresholds = ThemeManager.ParseAvailThreshold(availThreshold);
+        var usageThresholds = ThemeManager.ParseUsageThreshold(usageThreshold);
         var sortColumn = TableRenderer.ParseSortColumn(sort);
         
         // Determine terminal width
@@ -138,7 +153,7 @@ public class DskCommands
         }
         if (terminalWidth <= 0) terminalWidth = 80;
         
-        // Render tables
+        // Render table
         var tableOptions = new TableOptions
         {
             Columns = columns,
