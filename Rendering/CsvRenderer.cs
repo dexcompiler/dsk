@@ -60,7 +60,7 @@ public static class CsvRenderer
             ColumnId.InodesUsage => (mount.InodeUsage * 100).ToString("F1"),
             ColumnId.Type => mount.Fstype,
             ColumnId.Filesystem => mount.Device,
-            ColumnId.Trend => mount.DeviceType, // Placeholder - trend needs history
+            ColumnId.Trend => "-", // Trend needs history context
             _ => ""
         };
         
