@@ -53,11 +53,11 @@ public static class CsvRenderer
             ColumnId.Size => mount.Total.ToString(),
             ColumnId.Used => mount.Used.ToString(),
             ColumnId.Avail => mount.Free.ToString(),
-            ColumnId.Usage => (mount.Usage * 100).ToString("F1"),
+            ColumnId.Usage => $"{mount.Usage * 100:F1}%",
             ColumnId.Inodes => mount.Inodes.ToString(),
             ColumnId.InodesUsed => mount.InodesUsed.ToString(),
             ColumnId.InodesAvail => mount.InodesFree.ToString(),
-            ColumnId.InodesUsage => (mount.InodeUsage * 100).ToString("F1"),
+            ColumnId.InodesUsage => $"{mount.InodeUsage * 100:F1}%",
             ColumnId.Type => mount.Fstype,
             ColumnId.Filesystem => mount.Device,
             ColumnId.Trend => "-", // Trend needs history context
