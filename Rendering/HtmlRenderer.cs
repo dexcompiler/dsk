@@ -32,8 +32,8 @@ public static class HtmlRenderer
         sb.AppendLine("    <h1>Disk Usage</h1>");
         sb.AppendLine($"    <p class=\"timestamp\">Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}</p>");
         
-        // Group by device type
-        var groups = mounts.GroupBy(m => m.DeviceType).OrderBy(g => g.Key);
+        // Group by device type (same order as TableRenderer)
+        var groups = mounts.GroupBy(m => m.DeviceType).OrderBy(g => GetDeviceTypeOrder(g.Key));
         
         foreach (var group in groups)
         {
@@ -183,6 +183,20 @@ public static class HtmlRenderer
         if (free < 1UL << 30) return "usage-high";  // < 1GB
         if (free < 10UL << 30) return "usage-med";  // < 10GB
         return "usage-low";
+    }
+    
+    private static int GetDeviceTypeOrder(string deviceType)
+    {
+        return deviceType switch
+        {
+            DeviceTypes.Local => 0,
+            DeviceTypes.Network => 1,
+            DeviceTypes.Fuse => 2,
+            DeviceTypes.Special => 3,
+            DeviceTypes.Loops => 4,
+            DeviceTypes.Binds => 5,
+            _ => 99
+        };
     }
 }
 
