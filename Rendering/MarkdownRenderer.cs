@@ -1,4 +1,5 @@
 using Dsk.Models;
+using Dsk.Services;
 using Dsk.Utils;
 
 namespace Dsk.Rendering;
@@ -11,7 +12,7 @@ public static class MarkdownRenderer
     /// <summary>
     /// Render mounts as Markdown table to stdout.
     /// </summary>
-    public static void Render(List<Mount> mounts, List<ColumnId> columns)
+    public static void Render(List<Mount> mounts, List<ColumnId> columns, HistoryData? history = null)
     {
         // Header row
         var headers = columns.Select(GetColumnHeader);
@@ -24,7 +25,7 @@ public static class MarkdownRenderer
         // Data rows
         foreach (var mount in mounts)
         {
-            var values = columns.Select(col => GetCellValue(mount, col));
+            var values = columns.Select(col => GetCellValue(mount, col, history));
             Console.WriteLine("| " + string.Join(" | ", values) + " |");
         }
     }
@@ -61,7 +62,7 @@ public static class MarkdownRenderer
         };
     }
     
-    private static string GetCellValue(Mount mount, ColumnId column)
+    private static string GetCellValue(Mount mount, ColumnId column, HistoryData? history)
     {
         var value = column switch
         {
@@ -76,11 +77,24 @@ public static class MarkdownRenderer
             ColumnId.InodesUsage => $"{mount.InodeUsage * 100:F1}%",
             ColumnId.Type => EscapePipes(mount.Fstype),
             ColumnId.Filesystem => EscapePipes(mount.Device),
-            ColumnId.Trend => "-", // Trend needs history context
+            ColumnId.Trend => GetTrendValue(mount, history),
             _ => ""
         };
         
         return value;
+    }
+    
+    private static string GetTrendValue(Mount mount, HistoryData? history)
+    {
+        if (history == null)
+            return "-";
+            
+        var historyPoints = HistoryService.GetHistory(history, mount.Mountpoint);
+        if (historyPoints.Count == 0)
+            return "-";
+            
+        // Use Unicode sparkline for Markdown (renders well in most viewers)
+        return SparklineRenderer.Render(historyPoints, width: 8, useAscii: false);
     }
     
     private static string EscapePipes(string value)

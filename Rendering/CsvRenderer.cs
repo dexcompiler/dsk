@@ -1,4 +1,5 @@
 using Dsk.Models;
+using Dsk.Services;
 using Dsk.Utils;
 
 namespace Dsk.Rendering;
@@ -11,7 +12,7 @@ public static class CsvRenderer
     /// <summary>
     /// Render mounts as CSV to stdout.
     /// </summary>
-    public static void Render(List<Mount> mounts, List<ColumnId> columns)
+    public static void Render(List<Mount> mounts, List<ColumnId> columns, HistoryData? history = null)
     {
         // Header row
         var headers = columns.Select(GetColumnName);
@@ -20,7 +21,7 @@ public static class CsvRenderer
         // Data rows
         foreach (var mount in mounts)
         {
-            var values = columns.Select(col => GetCellValue(mount, col));
+            var values = columns.Select(col => GetCellValue(mount, col, history));
             Console.WriteLine(string.Join(",", values));
         }
     }
@@ -45,7 +46,7 @@ public static class CsvRenderer
         };
     }
     
-    private static string GetCellValue(Mount mount, ColumnId column)
+    private static string GetCellValue(Mount mount, ColumnId column, HistoryData? history)
     {
         var value = column switch
         {
@@ -60,7 +61,7 @@ public static class CsvRenderer
             ColumnId.InodesUsage => $"{mount.InodeUsage * 100:F1}%",
             ColumnId.Type => mount.Fstype,
             ColumnId.Filesystem => mount.Device,
-            ColumnId.Trend => "-", // Trend needs history context
+            ColumnId.Trend => GetTrendValue(mount, history),
             _ => ""
         };
         
@@ -71,6 +72,19 @@ public static class CsvRenderer
         }
         
         return value;
+    }
+    
+    private static string GetTrendValue(Mount mount, HistoryData? history)
+    {
+        if (history == null)
+            return "-";
+            
+        var historyPoints = HistoryService.GetHistory(history, mount.Mountpoint);
+        if (historyPoints.Count == 0)
+            return "-";
+            
+        // Use ASCII sparkline for CSV compatibility
+        return SparklineRenderer.Render(historyPoints, width: 8, useAscii: true);
     }
 }
 

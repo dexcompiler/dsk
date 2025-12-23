@@ -115,16 +115,16 @@ public class DskCommands
                 return;
                 
             case "csv":
-                CsvRenderer.Render(mounts, columns);
+                CsvRenderer.Render(mounts, columns, history);
                 return;
                 
             case "markdown":
             case "md":
-                MarkdownRenderer.Render(mounts, columns);
+                MarkdownRenderer.Render(mounts, columns, history);
                 return;
                 
             case "html":
-                HtmlRenderer.Render(mounts, columns);
+                HtmlRenderer.Render(mounts, columns, history);
                 return;
         }
         

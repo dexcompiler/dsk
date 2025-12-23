@@ -1,6 +1,7 @@
 using System.Text;
 using System.Web;
 using Dsk.Models;
+using Dsk.Services;
 using Dsk.Utils;
 
 namespace Dsk.Rendering;
@@ -13,7 +14,7 @@ public static class HtmlRenderer
     /// <summary>
     /// Render mounts as HTML table to stdout.
     /// </summary>
-    public static void Render(List<Mount> mounts, List<ColumnId> columns)
+    public static void Render(List<Mount> mounts, List<ColumnId> columns, HistoryData? history = null)
     {
         var sb = new StringBuilder();
         
@@ -56,7 +57,7 @@ public static class HtmlRenderer
                 sb.AppendLine("        <tr>");
                 foreach (var col in columns)
                 {
-                    var (value, cssClass) = GetCellValueWithClass(mount, col);
+                    var (value, cssClass) = GetCellValueWithClass(mount, col, history);
                     var align = GetAlignment(col);
                     sb.AppendLine($"          <td class=\"{align} {cssClass}\">{HttpUtility.HtmlEncode(value)}</td>");
                 }
@@ -151,7 +152,7 @@ public static class HtmlRenderer
         };
     }
     
-    private static (string Value, string CssClass) GetCellValueWithClass(Mount mount, ColumnId column)
+    private static (string Value, string CssClass) GetCellValueWithClass(Mount mount, ColumnId column, HistoryData? history)
     {
         return column switch
         {
@@ -166,9 +167,23 @@ public static class HtmlRenderer
             ColumnId.InodesUsage => ($"{mount.InodeUsage * 100:F1}%", GetUsageClass(mount.InodeUsage)),
             ColumnId.Type => (mount.Fstype, "muted"),
             ColumnId.Filesystem => (mount.Device, "muted"),
-            ColumnId.Trend => ("-", "muted"),
+            ColumnId.Trend => GetTrendValue(mount, history),
             _ => ("", "")
         };
+    }
+    
+    private static (string Value, string CssClass) GetTrendValue(Mount mount, HistoryData? history)
+    {
+        if (history == null)
+            return ("-", "muted");
+            
+        var historyPoints = HistoryService.GetHistory(history, mount.Mountpoint);
+        if (historyPoints.Count == 0)
+            return ("-", "muted");
+            
+        // Use Unicode sparkline for HTML
+        var sparkline = SparklineRenderer.Render(historyPoints, width: 8, useAscii: false);
+        return (sparkline, "trend");
     }
     
     private static string GetUsageClass(double usage)
