@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Runtime.InteropServices;
 
 namespace Dsk.Interop.Linux;
@@ -84,7 +85,8 @@ internal static class FsTypeMagic
     public const long CONFIGFS_MAGIC = 0x62656570;
     public const long EFIVARFS_MAGIC = 0xde5e81e4;
     
-    private static readonly Dictionary<long, string> TypeMap = new()
+    // FrozenDictionary/FrozenSet provide faster lookups for read-only static data
+    private static readonly FrozenDictionary<long, string> TypeMap = new Dictionary<long, string>
     {
         [ADFS_SUPER_MAGIC] = "adfs",
         [AFFS_SUPER_MAGIC] = "affs",
@@ -127,18 +129,18 @@ internal static class FsTypeMagic
         [BPF_FS_MAGIC] = "bpf",
         [CONFIGFS_MAGIC] = "configfs",
         [EFIVARFS_MAGIC] = "efivarfs",
-    };
+    }.ToFrozenDictionary();
     
-    private static readonly HashSet<long> NetworkTypes =
-    [
+    private static readonly FrozenSet<long> NetworkTypes = new HashSet<long>
+    {
         CIFS_MAGIC_NUMBER,
         NFS_SUPER_MAGIC,
         SMB_SUPER_MAGIC,
         SMB2_MAGIC_NUMBER,
-    ];
+    }.ToFrozenSet();
     
-    private static readonly HashSet<long> SpecialTypes =
-    [
+    private static readonly FrozenSet<long> SpecialTypes = new HashSet<long>
+    {
         AUTOFS_SUPER_MAGIC,
         BPF_FS_MAGIC,
         CGROUP_SUPER_MAGIC,
@@ -156,7 +158,7 @@ internal static class FsTypeMagic
         SYSFS_MAGIC,
         TMPFS_MAGIC,
         TRACEFS_MAGIC,
-    ];
+    }.ToFrozenSet();
     
     public static string GetTypeName(long magic) =>
         TypeMap.TryGetValue(magic, out var name) ? name : string.Empty;

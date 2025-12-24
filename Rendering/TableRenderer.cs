@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Dsk.Models;
@@ -64,7 +65,8 @@ public sealed class TableOptions
 /// </summary>
 public static class TableRenderer
 {
-    private static readonly Dictionary<string, ColumnId> ColumnMap = new(StringComparer.OrdinalIgnoreCase)
+    // FrozenDictionary provides faster lookups for read-only static data
+    private static readonly FrozenDictionary<string, ColumnId> ColumnMap = new Dictionary<string, ColumnId>(StringComparer.OrdinalIgnoreCase)
     {
         ["mountpoint"] = ColumnId.Mountpoint,
         ["size"] = ColumnId.Size,
@@ -78,9 +80,9 @@ public static class TableRenderer
         ["type"] = ColumnId.Type,
         ["filesystem"] = ColumnId.Filesystem,
         ["trend"] = ColumnId.Trend,
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     
-    private static readonly Dictionary<string, SortColumn> SortMap = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, SortColumn> SortMap = new Dictionary<string, SortColumn>(StringComparer.OrdinalIgnoreCase)
     {
         ["mountpoint"] = SortColumn.Mountpoint,
         ["size"] = SortColumn.Size,
@@ -94,7 +96,7 @@ public static class TableRenderer
         ["type"] = SortColumn.Type,
         ["filesystem"] = SortColumn.Filesystem,
         ["trend"] = SortColumn.Trend,
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     
     /// <summary>
     /// Parse column specification string into column IDs.
@@ -172,32 +174,38 @@ public static class TableRenderer
     
     private static List<Mount> SortMounts(List<Mount> mounts, TableOptions options)
     {
-        return options.SortBy switch
+        // Create a copy to avoid mutating the original list
+        var sorted = new List<Mount>(mounts);
+        
+        // Use in-place Sort instead of LINQ OrderBy to reduce allocations
+        sorted.Sort((a, b) => options.SortBy switch
         {
-            SortColumn.Size => [.. mounts.OrderBy(m => m.Total)],
-            SortColumn.Used => [.. mounts.OrderBy(m => m.Used)],
-            SortColumn.Avail => [.. mounts.OrderBy(m => m.Free)],
-            SortColumn.Usage => [.. mounts.OrderBy(m => m.Usage)],
-            SortColumn.Inodes => [.. mounts.OrderBy(m => m.Inodes)],
-            SortColumn.InodesUsed => [.. mounts.OrderBy(m => m.InodesUsed)],
-            SortColumn.InodesAvail => [.. mounts.OrderBy(m => m.InodesFree)],
-            SortColumn.InodesUsage => [.. mounts.OrderBy(m => m.InodeUsage)],
-            SortColumn.Type => [.. mounts.OrderBy(m => m.Fstype)],
-            SortColumn.Filesystem => [.. mounts.OrderBy(m => m.Device)],
-            SortColumn.Trend => SortByTrend(mounts, options),
-            _ => [.. mounts.OrderBy(m => m.Mountpoint)],
-        };
+            SortColumn.Size => a.Total.CompareTo(b.Total),
+            SortColumn.Used => a.Used.CompareTo(b.Used),
+            SortColumn.Avail => a.Free.CompareTo(b.Free),
+            SortColumn.Usage => a.Usage.CompareTo(b.Usage),
+            SortColumn.Inodes => a.Inodes.CompareTo(b.Inodes),
+            SortColumn.InodesUsed => a.InodesUsed.CompareTo(b.InodesUsed),
+            SortColumn.InodesAvail => a.InodesFree.CompareTo(b.InodesFree),
+            SortColumn.InodesUsage => a.InodeUsage.CompareTo(b.InodeUsage),
+            SortColumn.Type => string.Compare(a.Fstype, b.Fstype, StringComparison.Ordinal),
+            SortColumn.Filesystem => string.Compare(a.Device, b.Device, StringComparison.Ordinal),
+            SortColumn.Trend => CompareTrend(a, b, options),
+            _ => string.Compare(a.Mountpoint, b.Mountpoint, StringComparison.Ordinal),
+        });
+        
+        return sorted;
     }
     
-    private static List<Mount> SortByTrend(List<Mount> mounts, TableOptions options)
+    private static int CompareTrend(Mount a, Mount b, TableOptions options)
     {
         if (options.History == null)
-            return [.. mounts.OrderBy(m => m.Mountpoint)];
+            return string.Compare(a.Mountpoint, b.Mountpoint, StringComparison.Ordinal);
         
-        // Sort by trend direction: Up (filling) first, then Stable, then Down (freeing)
-        return [.. mounts.OrderByDescending(m =>
+        // Get trend scores (higher = filling up faster)
+        static int GetTrendScore(Mount m, TableOptions opts)
         {
-            var history = HistoryService.GetHistory(options.History, m.Mountpoint);
+            var history = HistoryService.GetHistory(opts.History!, m.Mountpoint);
             var trend = SparklineRenderer.GetTrend(history);
             return trend switch
             {
@@ -206,7 +214,17 @@ public static class TableRenderer
                 TrendDirection.Down => 0,   // Freeing = lowest priority
                 _ => 1
             };
-        }).ThenByDescending(m => m.Usage)]; // Secondary sort by current usage
+        }
+        
+        var scoreA = GetTrendScore(a, options);
+        var scoreB = GetTrendScore(b, options);
+        
+        // Sort descending by trend score, then by usage
+        var trendCompare = scoreB.CompareTo(scoreA);
+        if (trendCompare != 0)
+            return trendCompare;
+            
+        return b.Usage.CompareTo(a.Usage); // Secondary: descending by usage
     }
     
     private static void RenderTable(string deviceType, List<Mount> mounts, TableOptions options)

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using System.Text.RegularExpressions;
 using Dsk.Models;
@@ -24,20 +25,25 @@ public sealed partial class LinuxMountProvider : IMountProvider
         var mounts = new List<Mount>();
         var warnings = new List<string>();
         
-        string[] lines;
+        IEnumerable<string> lines;
         try
         {
-            lines = File.ReadAllLines(MountInfoPath);
+            // Use ReadLines for lazy enumeration - avoids loading entire file into memory
+            lines = File.ReadLines(MountInfoPath);
         }
         catch (Exception ex)
         {
             return (mounts, [$"Error reading {MountInfoPath}: {ex.Message}"]);
         }
         
-        foreach (var line in lines)
+        // Rent a reusable buffer for field parsing to reduce allocations
+        var fieldBuffer = ArrayPool<string>.Shared.Rent(16);
+        try
         {
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
-                continue;
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+                    continue;
                 
             var (fieldCount, fields) = ParseMountInfoLine(line);
             
@@ -98,6 +104,11 @@ public sealed partial class LinuxMountProvider : IMountProvider
             }
             
             mounts.Add(mount);
+            }
+        }
+        finally
+        {
+            ArrayPool<string>.Shared.Return(fieldBuffer);
         }
         
         return (mounts, warnings);
@@ -230,33 +241,47 @@ public sealed partial class LinuxMountProvider : IMountProvider
     {
         if (string.IsNullOrEmpty(path) || !path.Contains('\\'))
             return path;
-            
-        var result = new StringBuilder(path.Length);
         
-        for (int i = 0; i < path.Length; i++)
+        // Count escapes to determine output length
+        var span = path.AsSpan();
+        int escapeCount = 0;
+        for (int i = 0; i < span.Length - 3; i++)
         {
-            if (path[i] == '\\' && i + 3 < path.Length)
+            if (span[i] == '\\' && IsOctalDigit(span[i + 1]) && IsOctalDigit(span[i + 2]) && IsOctalDigit(span[i + 3]))
             {
-                var oct = path.Substring(i + 1, 3);
-                if (oct.All(c => c >= '0' && c <= '7'))
-                {
-                    try
-                    {
-                        char decoded = (char)Convert.ToInt32(oct, 8);
-                        result.Append(decoded);
-                        i += 3;
-                        continue;
-                    }
-                    catch
-                    {
-                        // Fall through to append backslash
-                    }
-                }
+                escapeCount++;
+                i += 3; // Skip the escape sequence
             }
-            result.Append(path[i]);
         }
         
-        return result.ToString();
+        if (escapeCount == 0)
+            return path;
+        
+        // Use string.Create to build result without intermediate allocations
+        // Each escape sequence (\xxx) is 4 chars that become 1 char, saving 3 chars per escape
+        return string.Create(path.Length - (escapeCount * 3), path, static (resultSpan, source) =>
+        {
+            var sourceSpan = source.AsSpan();
+            int writePos = 0;
+            
+            for (int i = 0; i < sourceSpan.Length; i++)
+            {
+                if (i + 3 < sourceSpan.Length && sourceSpan[i] == '\\' &&
+                    IsOctalDigit(sourceSpan[i + 1]) && IsOctalDigit(sourceSpan[i + 2]) && IsOctalDigit(sourceSpan[i + 3]))
+                {
+                    // Decode octal escape
+                    int value = (sourceSpan[i + 1] - '0') * 64 + (sourceSpan[i + 2] - '0') * 8 + (sourceSpan[i + 3] - '0');
+                    resultSpan[writePos++] = (char)value;
+                    i += 3;
+                }
+                else
+                {
+                    resultSpan[writePos++] = sourceSpan[i];
+                }
+            }
+        });
     }
+    
+    private static bool IsOctalDigit(char c) => c >= '0' && c <= '7';
 }
 
