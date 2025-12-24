@@ -25,22 +25,13 @@ public sealed partial class LinuxMountProvider : IMountProvider
         var mounts = new List<Mount>();
         var warnings = new List<string>();
         
-        IEnumerable<string> lines;
-        try
-        {
-            // Use ReadLines for lazy enumeration - avoids loading entire file into memory
-            lines = File.ReadLines(MountInfoPath);
-        }
-        catch (Exception ex)
-        {
-            return (mounts, [$"Error reading {MountInfoPath}: {ex.Message}"]);
-        }
-        
         // Rent a reusable buffer for field parsing to reduce allocations
         var fieldBuffer = ArrayPool<string>.Shared.Rent(16);
         try
         {
-            foreach (var line in lines)
+            // Use ReadLines for lazy enumeration - avoids loading entire file into memory
+            // Note: File is opened lazily during iteration, so errors must be caught here
+            foreach (var line in File.ReadLines(MountInfoPath))
             {
                 if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
                     continue;
@@ -105,6 +96,10 @@ public sealed partial class LinuxMountProvider : IMountProvider
             
             mounts.Add(mount);
             }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException or FileNotFoundException)
+        {
+            warnings.Add($"Error reading {MountInfoPath}: {ex.Message}");
         }
         finally
         {
