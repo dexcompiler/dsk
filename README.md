@@ -58,6 +58,7 @@ dsk --format json             # JSON output
 dsk --format csv              # CSV for spreadsheets/scripts
 dsk --format markdown         # Markdown table
 dsk --format html             # Styled HTML page
+dsk --format barchart         # Horizontal bar chart visualization
 dsk --output size,used,avail  # Select columns
 dsk --output usage,trend      # Usage bars with sparkline trends
 dsk --sort size               # Sort by column
@@ -90,7 +91,7 @@ dsk --no-save                 # Don't save usage to history
 | `--style <name>` | Table style: unicode, ascii |
 | `-i, --inodes` | Show inode information |
 | `-j, --json` | Output as JSON (shortcut for --format json) |
-| `-f, --format <fmt>` | Output format: table, json, csv, markdown, html |
+| `-f, --format <fmt>` | Output format: table, json, csv, markdown, html, barchart |
 | `--no-save` | Don't save usage data to history |
 | `--warnings` | Show warnings |
 

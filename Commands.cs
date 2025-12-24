@@ -126,6 +126,18 @@ public class DskCommands
             case "html":
                 HtmlRenderer.Render(mounts, columns, history);
                 return;
+                
+            case "barchart":
+            case "bar":
+                var barTheme = ThemeManager.LoadTheme(theme);
+                var barUsageThresholds = ThemeManager.ParseUsageThreshold(usageThreshold);
+                var barOptions = new BarChartOptions
+                {
+                    Theme = barTheme,
+                    UsageThresholds = barUsageThresholds,
+                };
+                BarChartRenderer.Render(mounts, barOptions);
+                return;
         }
         
         // Default: table format
