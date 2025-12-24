@@ -1,7 +1,7 @@
 using System.Text;
 using System.Web;
 using Dsk.Models;
-using Dsk.Services;
+using Dsk.Services; // For HistoryData
 using Dsk.Utils;
 
 namespace Dsk.Rendering;
@@ -167,23 +167,9 @@ public static class HtmlRenderer
             ColumnId.InodesUsage => ($"{mount.InodeUsage * 100:F1}%", GetUsageClass(mount.InodeUsage)),
             ColumnId.Type => (mount.Fstype, "muted"),
             ColumnId.Filesystem => (mount.Device, "muted"),
-            ColumnId.Trend => GetTrendValue(mount, history),
+            ColumnId.Trend => (SparklineRenderer.RenderForMount(history, mount.Mountpoint, useAscii: false), "trend"),
             _ => ("", "")
         };
-    }
-    
-    private static (string Value, string CssClass) GetTrendValue(Mount mount, HistoryData? history)
-    {
-        if (history == null)
-            return ("-", "muted");
-            
-        var historyPoints = HistoryService.GetHistory(history, mount.Mountpoint);
-        if (historyPoints.Count == 0)
-            return ("-", "muted");
-            
-        // Use Unicode sparkline for HTML
-        var sparkline = SparklineRenderer.Render(historyPoints, width: 8, useAscii: false);
-        return (sparkline, "trend");
     }
     
     private static string GetUsageClass(double usage)

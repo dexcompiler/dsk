@@ -1,5 +1,5 @@
 using Dsk.Models;
-using Dsk.Services;
+using Dsk.Services; // For HistoryData
 using Dsk.Utils;
 
 namespace Dsk.Rendering;
@@ -77,24 +77,11 @@ public static class MarkdownRenderer
             ColumnId.InodesUsage => $"{mount.InodeUsage * 100:F1}%",
             ColumnId.Type => EscapePipes(mount.Fstype),
             ColumnId.Filesystem => EscapePipes(mount.Device),
-            ColumnId.Trend => GetTrendValue(mount, history),
+            ColumnId.Trend => SparklineRenderer.RenderForMount(history, mount.Mountpoint, useAscii: false),
             _ => ""
         };
         
         return value;
-    }
-    
-    private static string GetTrendValue(Mount mount, HistoryData? history)
-    {
-        if (history == null)
-            return "-";
-            
-        var historyPoints = HistoryService.GetHistory(history, mount.Mountpoint);
-        if (historyPoints.Count == 0)
-            return "-";
-            
-        // Use Unicode sparkline for Markdown (renders well in most viewers)
-        return SparklineRenderer.Render(historyPoints, width: 8, useAscii: false);
     }
     
     private static string EscapePipes(string value)

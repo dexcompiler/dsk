@@ -1,3 +1,5 @@
+using Dsk.Services;
+
 namespace Dsk.Utils;
 
 /// <summary>
@@ -5,6 +7,22 @@ namespace Dsk.Utils;
 /// </summary>
 public static class SparklineRenderer
 {
+    /// <summary>
+    /// Render a sparkline for a mount point from history data.
+    /// Returns "-" if no history is available.
+    /// </summary>
+    public static string RenderForMount(HistoryData? history, string mountpoint, bool useAscii = false)
+    {
+        if (history == null)
+            return "-";
+            
+        var historyPoints = HistoryService.GetHistory(history, mountpoint);
+        if (historyPoints.Count == 0)
+            return "-";
+            
+        return Render(historyPoints, width: 8, useAscii: useAscii);
+    }
+
     // Unicode block elements for sparklines (8 levels)
     private static readonly char[] SparkChars = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
     

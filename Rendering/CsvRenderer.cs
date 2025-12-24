@@ -1,5 +1,5 @@
 using Dsk.Models;
-using Dsk.Services;
+using Dsk.Services; // For HistoryData
 using Dsk.Utils;
 
 namespace Dsk.Rendering;
@@ -61,7 +61,7 @@ public static class CsvRenderer
             ColumnId.InodesUsage => $"{mount.InodeUsage * 100:F1}%",
             ColumnId.Type => mount.Fstype,
             ColumnId.Filesystem => mount.Device,
-            ColumnId.Trend => GetTrendValue(mount, history),
+            ColumnId.Trend => SparklineRenderer.RenderForMount(history, mount.Mountpoint, useAscii: true),
             _ => ""
         };
         
@@ -72,19 +72,6 @@ public static class CsvRenderer
         }
         
         return value;
-    }
-    
-    private static string GetTrendValue(Mount mount, HistoryData? history)
-    {
-        if (history == null)
-            return "-";
-            
-        var historyPoints = HistoryService.GetHistory(history, mount.Mountpoint);
-        if (historyPoints.Count == 0)
-            return "-";
-            
-        // Use ASCII sparkline for CSV compatibility
-        return SparklineRenderer.Render(historyPoints, width: 8, useAscii: true);
     }
 }
 
