@@ -65,8 +65,8 @@ public static class CsvRenderer
             _ => ""
         };
         
-        // Escape CSV values containing commas, quotes, or newlines
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+        // Escape CSV values containing commas, quotes, or line breaks
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
         {
             value = "\"" + value.Replace("\"", "\"\"") + "\"";
         }
